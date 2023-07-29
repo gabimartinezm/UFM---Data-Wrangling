@@ -1,0 +1,10 @@
+#install.packages("dplyr")
+#install.packages("RMySQL")
+#install.packages("lubridate")
+#install.packages("openxlsx")
+#install.packages("tidyverse")
+#install.packages("stringr")
+#install.packages("readr")
+#install.packages("ggplor2")
+
+print("hello world")
