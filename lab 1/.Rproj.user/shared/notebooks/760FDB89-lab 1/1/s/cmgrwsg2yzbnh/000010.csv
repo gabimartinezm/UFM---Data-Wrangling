@@ -1,0 +1,6 @@
+"0","paste(""la data tiene"", nrow(datos),""filas y"", ncol(datos), ""columnas"")
+"
+"1","[1]"
+"1"," ""la data tiene 2180 filas y 9 columnas"""
+"1","
+"

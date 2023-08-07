@@ -1,0 +1,23 @@
+library(readxl)
+library(readr)
+library(tidyverse)
+library(tidytext)
+
+
+#excel -----------------
+excel <- read_excel('example_1.xlsx', sheet = 1)
+
+# write_excel_csv2(excel) <- de excel a csv
+
+# csv ------------------
+
+csv <- read_csv('example_2.csv')
+
+
+# archivo de texto ----------------
+
+txt <- read_delim('example_3.txt', delim = ";")
+
+
+# archivo de texto no tabulado 
+dorian <- read_lines("dorian_gray.txt", skip_empty_rows = TRUE)
