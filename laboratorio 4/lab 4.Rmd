@@ -1,0 +1,307 @@
+---
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+```
+
+```{r, include=FALSE}
+# cargar librerias
+library(readr)
+library(dplyr)
+library(tidyverse)
+library(scales)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+```
+
+
+```{r, include=FALSE}
+# importar el documento 
+df <- read_csv("tabla_completa.csv")
+
+
+#ver con que estoy trabajando
+View(df)
+str(df)
+```
+
+```{r include=FALSE}
+## LIMPIAR DATOS ##
+
+#separar los comentarios que estan en la columna de cliente 
+
+var1 <- grepl("Faltante|FALTANTE", df$CLIENTE, ignore.case = TRUE)
+
+df2 <- df %>%
+  mutate(
+    Cliente1 = ifelse(var1, sub("\\|\\|\\|.*", "", CLIENTE), CLIENTE),
+    entrega_completa = ifelse(var1, sub(".*\\|\\|\\|", "", CLIENTE), "")
+  )
+
+var2 <- str_detect(df2$Cliente1, "DEVOLUCION") 
+
+df3 <- df2 %>%
+  mutate(
+    Cliente2 = ifelse(var2, sub("\\|\\|\\|.*", "", Cliente1), Cliente1),
+    devolucion = ifelse(var2, sub(".*\\|\\|\\|", "", Cliente1), "")
+  )
+
+var3 <- str_detect(df3$Cliente2, "Despacho a cliente")
+
+df4 <- df3 %>%
+  mutate(
+    cliente = ifelse(var3, sub("/.*", "", Cliente2), Cliente2),
+    to_drop = ifelse(var3, sub(".*/", "", Cliente2), "")
+  )
+
+#borrar las columnas duplicadas
+
+data <- df4 %>%
+  select(-"CLIENTE", -"Cliente1", -"Cliente2", -"to_drop")
+
+data <- data[ ,2:13]
+
+#view(data)
+
+#pasar todos los faltantes a mayusculas 
+
+data <- data %>% 
+  mutate(entrega_completa = toupper(data$entrega_completa))
+
+
+#cambiar nombre de variables, porque es mas facil para mi
+
+names(data)[1:9] <- c("cod_viaje", "ubicacion", "cantidad", "piloto", "Q", "credito", "unidad", "mes", "año")
+names(data)
+
+view(data)
+```
+
+#  
+
+<img src="logo.jpg" alt="Dunder Mifflin logo" style="height: 100px; align: left;"/>
+
+# Informe de Entregas 2017
+
+
+
+### Resumen 
+
+Este informe está dirigido para una reunión en conjunto del gerente del departamento de entregas y la junta directiva de Dunder Mifflin, una empresa que elabora y distribuye productos de papel. Se elaboró con el fin de poder dar una explicación viable en cuanto a entregas  de mercancía faltantes, eficiencia de pilotos y vehículos y el comportamiento del 20% más importante de nuestros clientes, todo desde un punto de vista de entregas. se encontró que las ventas no siguen el 80/20 de Pareto, que no hay un patrón de comportamiento sospechoso dentro de los pilotos y la inversión en camiones grandes podría llevar a aumentar la eficiencia de viajes diarios. 
+
+
+### Supuestos
+
+Para poder llevar a cabo la investigación, se trabajó bajo los siguientes supuestos:
+
+Para poder llevar a cabo la investigación, se trabajó bajo los siguientes supuestos:
+
++ Se trabajo con una base de datos de 2180 viajes de enero a noviembre en 2017
++ Se contaban con datos como cantidad y monto de cada entrega, el cliente a quien fue entregado y quién realizó la entrega y con qué vehículo
++ El término "FALTANTE" se utilizó para indicar las entregas que no llegaron completas al cliente, es decir, con mercancía de menos que la que habían ordenado 
++ El término “DEVOLUCION” se utilizó para indicar las entregas que fueron devueltas por el cliente después de haber hecho la entrega
++ El término “Despacho al cliente” se utilizó para indicar que estas ordenes fueron enviadas al cliente, pero como se está trabajando con una base de datos de entregas se asumió que las que todas las ordenes fueron despachas al cliente 
+
+
+
+
+### Resultados 
+
+##### Hipótesis 1: Existe una diferencia significativa en el volumen promedio de pedidos entre el grupo de los principales clientes (el 20% superior) y el grupo de los demás clientes (el 80% restante)
+
+```{r, message=FALSE}
+## ver quien genera más ingresos 
+ingresos_generales <- sum(data$Q)
+
+devoluciones_generales <- filter(data, devolucion == "DEVOLUCION")
+
+ingreso_por_cliente <- 
+  data %>% 
+  group_by(cliente) %>% 
+  select(cantidad, Q, devolucion) %>% 
+  summarise(ingresos_totales = sum(Q),
+            unidades_totales = sum(cantidad),
+            pedidos_totales = n()) %>% 
+  mutate(porcentaje = (ingresos_totales/ingresos_generales)*100) %>% 
+  arrange(desc(ingresos_totales))
+
+#cuanto devuelve cada uno en cuanto al porcentaje que aporta - solo 1 devuelve
+
+devolucioenes_cliente <- 
+  devoluciones_generales %>% 
+  group_by(cliente) %>% 
+  count()
+
+
+#formato
+ingreso_por_cliente$porcentaje <- percent(ingreso_por_cliente$porcentaje, scale = 1, accuracy = 0.01)
+ingreso_por_cliente$ingresos_totales <- format(ingreso_por_cliente$ingresos_totales, digits = 4, big.mark = ",", )
+ingreso_por_cliente$unidades_totales <- format(ingreso_por_cliente$unidades_totales, digits = 4, big.mark = ",")
+ingreso_por_cliente$pedidos_totales <- format(ingreso_por_cliente$pedidos_totales, digits = 4, big.mark = ",")
+
+# Create a kable table with formatting
+kable(ingreso_por_cliente)
+
+#el 20% van a ser los primeros 3, pero el 80% de ingreso son los primeros 11
+
+big_spenders <- ingreso_por_cliente[1:11, ]
+
+big_spenders <- arrange(big_spenders, desc(ingresos_totales))
+
+# grafica
+
+ggplot(big_spenders, aes(x = reorder(cliente, ingresos_totales))) +
+  geom_bar(aes(y = ingresos_totales, fill = "Ingresos Totales"), stat = "identity", position = position_dodge(width = 0.3)) +
+  scale_fill_manual(values = c("Ingresos Totales" = "palegreen3"),
+                    labels = c("Ingresos Totales")) +
+  labs(title = "Ingresos anuales por cliente",
+       x = "Cliente",           
+       y = "Ingresos Totales",
+       fill = "") +   
+  theme_minimal() +
+  theme(legend.position = "top",
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+# que se le puede ofrecer a los mas grandes
+```
+
+Con la data presentada, se puede observar que en este caso los clientes de Dundler Mifflin no cumplen con la ley de Pareto, ya que el 20% de los clientes: El Pinche, El Gallo Negro y Pollo Pinulito no generan el 80% de los ingresos de la empresa. Sino que 11 empresas (las mostradas en la gráfica) generan el 80% de los ingresos. Por lo que se deben de tomar medidas para quedar bien con estas 11 empresas. 
+
+##### Hipótesis 2: Existe una un patrón o relación identificable entre los pilotos y las entregas incompletas
+```{r}
+
+entregas_faltantes <- filter(data, entrega_completa == "FALTANTE")
+
+entregas_incompletas <- 
+  data %>% 
+  group_by(entrega_completa) %>% 
+  count() %>% 
+  mutate(porcentaje = n/2180)
+
+cantidad_pilotos <- 
+  data %>% 
+  summarise(n = n_distinct(piloto))
+
+#entregas por piloto
+entregas_por_pilot <- 
+  data %>% 
+  group_by(piloto) %>% 
+  count()
+
+#entregas faltantes por piloto
+entregas_faltantes_piloto <- 
+  entregas_faltantes %>% 
+  select(piloto, entrega_completa) %>% 
+  group_by(piloto) %>% 
+  summarise(n = n()) %>% 
+  mutate(porcentaje = percent(n/2180, accuracy = 0.01))
+  
+
+entregas_faltantes_piloto <- arrange(entregas_faltantes_piloto, desc(n))
+
+kable(entregas_faltantes_piloto,
+      col.names = c("Piloto","Entregas Incompletas", "% de Entregas Incompletas"))
+
+
+## grafica de barras comparando sus entregas completas con entregas incompletas, esta va despues de la hipotesis 2
+
+# grafica
+# Merge the two data frames into a single data frame
+combined_data <- bind_rows(
+  entregas_por_pilot %>% mutate(data_type = "entregas_por_pilot"),
+  entregas_faltantes_piloto %>% mutate(data_type = "entregas_faltantes_piloto")
+)
+
+# Create a side-by-side bar plot with facets
+ggplot(combined_data, aes(x = piloto, y = n, fill = data_type)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = c("entregas_por_pilot" = "royalblue1", "entregas_faltantes_piloto" = "palegreen3"),
+                    labels = c("Entregas completas", "Entregas faltantes")) +
+  theme_minimal() +
+  labs(fill = "Data Type",
+       title = "Proporción de Entregas completas y faltantes por piloto",
+       x = "Piloto",
+       y = "Cantidad de entregas") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(fill = "Entregas por piloto")
+# ver si los 9 han entregado a todos los lugares con faltantes 
+  
+```
+
+Como se puede observar en la tabla anterior, de los nueve conductores que se tienen contratados, los 9 han sufrido de alguna entrega con mercancia faltante y en los 9 casos son en un porcentaje menor del 5% de sus recorridos, por lo que según la data proporcionada se puede concluir que no hay correlación con alguno de los conductores y valdría la pena revisar si el fallo de completar unidades es en otro departamento.
+
+
+##### Hipótesis 3: Con la cantidad actual de personal y vehículos se puede encontrar una manera más eficiente para distribuir las órdenes 
+```{r}
+
+viajes_por_mes <- 
+  data %>%
+  group_by(piloto, mes) %>% 
+  count() %>% 
+  pivot_wider(names_from = mes, values_from = n, names_prefix = "mes_")
+
+names(viajes_por_mes)[2:12] <- c("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre")
+
+viajes_por_mes <- 
+  viajes_por_mes %>% 
+  mutate(promedio_mes = round(mean(c_across(enero:noviembre))),
+         promedio_dia = round(promedio_mes/30))
+
+promedio_piloto <- 
+  viajes_por_mes %>% 
+  select(piloto, promedio_mes, promedio_dia) %>% 
+  arrange(desc(promedio_mes))
+
+kable(promedio_piloto, 
+      col.names = c("Piloto", "Promedio de Viajes al mes", "Promedio de Viajes al día"))
+
+#que vehiculos utilizan más 
+
+vehiculo_por_piloto <- 
+  data %>% 
+  group_by(piloto, unidad) %>%
+  count() %>% 
+  pivot_wider(names_from = unidad, values_from = n)
+
+names(vehiculo_por_piloto)[3] <- "camion small"
+  
+
+## ver si los que estan teniendo más al mes manejan un vehiculo en especifico, se cambia a un vehiculo, cantidad que se lleva en cada vehiculo 
+
+
+# grafica
+# Reshape the data
+reshaped_data <- vehiculo_por_piloto %>%
+  pivot_longer(cols = c("Camion Grande", "camion small", "Panel"),
+               names_to = "vehiculo",
+               values_to = "count")
+
+# Plot the data
+ggplot(reshaped_data, aes(x = piloto, y = count, fill = vehiculo)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = c("Camion Grande" = "royalblue1", "camion small" = "palegreen3", "Panel" = "palegoldenrod")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(fill = "Vehiculos utilizados", 
+       title = "Entregas según el vehiculo utilizado por piloto",
+       x = "Piloto",
+       y = "Cantidad de entregas por vehiculo")
+
+##ver cuanto puede llevar cada vehiculo y ver si se puede unir para llevar a dos lugares en más de un dia 
+```
+
+Según la data presentada, se puede asumir que cada piloto trabaja alrededor de 5 días a la semana y que logra hacer por promedio 1 viaje al día. Esto podría indicar que los pilotos deben de llegar a una de las dos ubicaciones para recoger el vehículo y la mercancía y lo regresan a la ubicación después de hacer la entrega. 
+
+También se puede asumir, como todos los pilotos utilizan las tres unidades de vehículo en cantidades similares, que seleccionan que vehículo utilizar según el tamaño de la entrega que tengan que hacer ese día. Según lo investigado en promedio una panel tiene capacidad de 750 kg, un camión liviano o pequeño de 2.5 a 3.5 toneladas y un camión semi-pesado o grande de 5.5 a 7.5 toneladas. Según esta información y la data encontrada se recomendaría analizar la inversión de agrandar la flota de camiones grandes ya que estos podrían ser utilizados para realizar la entrega en un solo viaje de lo que se haría en un camión liviano y una panel en dos viajes, aumentando la productividad de cada piloto y maximizando los viajes que hacen todos los días. 
+
+### Conclusiones y recomendaciones 
++ Llevar a cabo una invsetigación y analizar las bases de datos de órdenes y producción para ver en donde es el descuadre de entregas incompletas
++ Hacer un análisis de mercado y tendencias para observar el comportamiento de las industrias donde trabajan los 11 clientes más importantes para nosotros y poder hacer estrategías más específicas hacia ellos 
++ Hacer un análisis financiero acerca de la inversión en la compra de camiones grandes y venta de los camiones pequeños y panels actuales 
+
+
+
