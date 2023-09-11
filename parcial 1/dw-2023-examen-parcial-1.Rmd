@@ -2,7 +2,7 @@
 title: "dw-2023-parcial-1"
 author: "Tepi"
 date: "9/11/2023"
-output: html_document
+output: github_document
 ---
 
 # Examen parcial
