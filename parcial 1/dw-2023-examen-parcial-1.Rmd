@@ -2,8 +2,7 @@
 title: "dw-2023-parcial-1"
 author: "Tepi"
 date: "9/11/2023"
-output: rmarkdown::github_document
-
+output: html_document
 ---
 
 # Examen parcial
@@ -20,12 +19,18 @@ Indicaciones generales:
 
 * Responda las siguientes preguntas de temas que fueron tocados en clase. 
 
-1. ¿Qué es una ufunc y por qué debemos de utilizarlas cuando programamos trabajando datos?}
+1. ¿Qué es una ufunc y por qué debemos de utilizarlas cuando programamos trabajando datos?
+
+ufunc es una función universal que permite hacer una operación en cada elemento individual del array. Se debe utilizar al trabajar con datos ya que permite hacer un código más eficiente y hacer operaciones complicadas en una lista de objetos
 
 
 2. Es una técnica en programación numérica que amplía los objetos que son de menor dimensión para que sean compatibles con los de mayor dimensión. Describa cuál es la técnica y de un breve ejemplo en R.
 
+hacer un broadcasting sobre una matriz, donde las funciones se aplican de manera vectorizada sobre arrays o listas de diferentes tamaños 
+
 3. ¿Qué es el axioma de elegibilidad y por qué es útil al momento de hacer análisis de datos? 
+
+el axioma de elegibilidad mantien que para cada familia de conjuntos no vacios existe otro conjunto que tiene un elemento de cada una de estas familias. Es útil, ya que permite manejar muestras y definir funciones en ámbitos más abstractos a la hora de trabajar con datos más complejos
 
 4. Cuál es la relación entre la granularidad y la agregación de datos? Mencione un breve ejemplo. Luego, exploque cuál es la granularidad o agregación requerida para poder generar un reporte como el siguiente:
 
@@ -38,6 +43,9 @@ Indicaciones generales:
 |ROW  | 943      |
 
 
+Granularidad hace referencia al nivel de detalle en un conjunto de datos, mientras que la agregación es el proceso por el cual se reduce esta granularidad. 
+
+Para poder generar un reporte como el anterior se necesita un registro de cada usuario donde se tenga la información de este donde este incluido su país. La agregación necesaria sería la agrupación por países de los registos y el conteo de cada uno.
 
 ## Sección I: Preguntas teóricas. (50pts)
 
@@ -48,7 +56,7 @@ Indicaciones generales:
 
 ```{r, echo=TRUE, cache=TRUE}
 
-set.seed("20210219") 
+set.seed("20210219")
 v<- 1:10
 preguntas <-sort(sample(v, size = 5, replace = FALSE ))
 
@@ -106,73 +114,73 @@ df <- readRDS("parcial_anonimo.rds")
 
 head(df)
 
-#ver en que paises esta cada cliente 
-paises <- 
-  df %>% 
+#ver en que paises esta cada cliente
+paises <-
+  df %>%
   distinct(Pais)
 
-clientes <- 
-  df %>% 
+clientes <-
+  df %>%
   distinct(Cliente)
 
-clientes_x_pais <- 
-  df %>% 
-  select(Cliente, Pais, Venta) %>% 
-  group_by(Cliente, Pais) %>% 
-  count() %>% 
-  pivot_wider(names_from = Pais, values_from = n) 
+clientes_x_pais <-
+  df %>%
+  select(Cliente, Pais, Venta) %>%
+  group_by(Cliente, Pais) %>%
+  count() %>%
+  pivot_wider(names_from = Pais, values_from = n)
 
 names(clientes_x_pais)[2:3] <- c("pais1","pais2")
 
-clientes_dospaises <- 
-  clientes_x_pais %>% 
-  filter(pais1 >= 1) %>% 
+clientes_dospaises <-
+  clientes_x_pais %>%
+  filter(pais1 >= 1) %>%
   filter(pais2 >= 1)
 
-ventas_por_cliente <- 
-  df %>% 
-  select(Cliente, Venta) %>% 
-  group_by(Cliente) %>% 
-  summarise(ventas_totales = sum(Venta)) 
+ventas_por_cliente <-
+  df %>%
+  select(Cliente, Venta) %>%
+  group_by(Cliente) %>%
+  summarise(ventas_totales = sum(Venta))
 
 
-cliente_mas_rentable <- 
-  inner_join(clientes_dospaises, ventas_por_cliente) 
-
+cliente_mas_rentable <-
+  inner_join(clientes_dospaises, ventas_por_cliente)
 #pregunta 2------------------------------------------------------------------
 
-territorios <- 
-  df %>% 
+territorios <-
+  df %>%
   distinct(Territorio)
 
-ventas_por_territorio <- 
-  df %>% 
-  select(Territorio, Venta) %>% 
-  group_by(Territorio) %>% 
+ventas_por_territorio <-
+  df %>%
+  select(Territorio, Venta) %>%
+  group_by(Territorio) %>%
   summarise(ventas_totales = sum(Venta),
             cantidad_de_ventas = n())
 
-ventas_por_territorio_negativas <- 
-  df %>% 
-  select(Territorio, Venta) %>% 
-  filter(Venta <= 0) %>% 
-  group_by(Territorio) %>% 
+ventas_por_territorio_negativas <-
+  df %>%
+  select(Territorio, Venta) %>%
+  filter(Venta <= 0) %>%
+  group_by(Territorio) %>%
   summarise(perdidas_totales = sum(Venta),
             ventas_negativas = n())
 
 ventas_territorios_negativos <- inner_join(ventas_por_territorio_negativas, ventas_por_territorio)
 
-ventas_territorios_negativos <- 
-  ventas_territorios_negativos %>% 
+ventas_territorios_negativos <-
+  ventas_territorios_negativos %>%
   mutate(proporcion_v_negativas = ventas_negativas/cantidad_de_ventas)
 
+kable(cliente_mas_rentable)
 ```
 
 El cliente más rentable que se encuentrá en más de un país es "a17a7558" ya que este es el que genera más ventas de los clientes que se encuentran en dos países 
  
 Según lo observado, los siguientes territorios generán pérdida en una proporción mayor al 45% de sus ventas, por lo que se debería de considerar ya no operar alli 
 
-```{r}
+```{r cache=TRUE}
 kable(ventas_territorios_negativos)
 ```
 
@@ -182,13 +190,13 @@ kable(ventas_territorios_negativos)
 ### I. Preguntas teóricas
 
 
-## 1. Para las siguientes sentencias de `base R`, liste su contraparte de `dplyr`:
+## 1. Para las siguientes sentencias de `base R`, liste su contraparte de `dplyr`
     * `str()`
     * `df[,c("a","b")]`
     * `names(df)[4] <- "new_name"` donde la posición 4 corresponde a la variable `old_name`
     * `df[df$variable == "valor",]`
 
-respuesta: 
+respuesta
 
   * `str()` en dplyr es igual a `glimpse()`
   * `df[,c("a","b")]` en dplyr es igual a `select(df, a, b)`
@@ -199,27 +207,31 @@ respuesta:
 
 ## 2. Al momento de filtrar en SQL, ¿cuál keyword cumple las mismas funciones que el keyword `OR`  para filtrar uno o más elementos una misma columna?
 
-respuesta:
+respuesta
 
 WHERE columna IN (elementos)
 
 ---
+
 ## 3. ¿Por qué en R utilizamos funciones de la familia apply (lapply,vapply) en lugar de utilizar ciclos? 
 
-respuesta:
+respuesta
+
 porque es una manera más efciente de correr una misma función en una lista de datos ya que permite correr multiples operaciones en un comando y correrlo por todos los items de una lista con menos lineas de código que un ciclo
 
 ---
 
 ## 4. ¿Cuál es la diferencia entre utilizar `==` y `=` en R?
 
-respuesta:
+respuesta
+
 `==` es un operador lógico, por lo que se utiliza para hacer una comparación. En cambio, `=` se utiliza para asignar un valor a una variable 
 
 ---
 
 ## 7. ¿Qué pasa si quiero agregar una nueva categoría a un factor que no se encuentra en los niveles existentes?
 
-respuesta:
+respuesta
+
 lo colocará como NA 
 
