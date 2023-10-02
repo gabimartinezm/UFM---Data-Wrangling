@@ -1,0 +1,186 @@
+library(lubridate)
+library(readxl)
+library(nycflights13)
+library(dplyr)
+library(ggplot2)
+
+#inciso 1 ---------------------------------------------------
+
+eclipse0 <- 21082017182640
+
+ecplise0 <- dmy_hms(eclipse0)
+
+syn_month <- days(29) + hours(12) + minutes(44) + seconds(3)
+
+saros <- syn_month *233
+
+ecplise1 <- ecplise0 + saros
+
+paste("el siguiente eclipse será el: ", ecplise1, "\n")
+
+#inciso 2 ---------------------------------------------------
+
+data <- read_excel("data.xlsx")
+
+View(data)
+
+names(data) <- c("fecha_creacion", "hora_creacion", "caller_ID", "motivo", "email", "sms", "llamada", "fecha_final", "hora_final")
+
+data <- data %>% 
+  mutate(
+    fecha_creacion_origen = fecha_creacion,
+    fecha_creacion = dmy(fecha_creacion),
+    fecha_creacion_origen = as.Date(as.numeric(fecha_creacion_origen), origin = "1899-12-30"),
+    fecha_final_origen = fecha_final,
+    fecha_final = dmy(fecha_final),
+    fecha_final_origen = as.Date(as.numeric(fecha_final_origen), origin = "1899-12-30")
+  )
+
+data <- data %>% 
+  mutate(
+    fecha_creacion_f = coalesce(fecha_creacion_origen, fecha_creacion),
+    fecha_final_f = coalesce(fecha_final_origen, fecha_final)
+  )
+
+str(data)
+
+names(data)
+
+data <- data %>% 
+  select(-c(fecha_creacion, fecha_final, fecha_creacion_origen, fecha_final_origen))
+
+View(data)
+
+# en que meses hay mayor cantidad de llamadas por motivo
+
+llamadas_motivo_mes <- data %>% 
+  select(motivo, fecha_creacion_f) %>% 
+  group_by(motivo, month(fecha_creacion_f, label = TRUE)) %>% 
+  summarise(n = n()) %>% 
+  slice_max(n, with_ties = FALSE) 
+
+View(llamadas_motivo_mes)
+
+#que dia de la semana es mas ocupado 
+
+llamadas_por_dia_semana <- data %>% 
+  select(fecha_creacion_f) %>% 
+  mutate(dia_de_semana = wday(fecha_creacion_f, label = TRUE)) %>% 
+  group_by(dia_de_semana) %>% 
+  summarise(llamadas_dia = n())  
+
+print("El día más ocupado es el domingo")
+
+#que mes es mas ocupado 
+llamadas_por_mes <- data %>% 
+  select(fecha_creacion_f) %>% 
+  group_by(month(fecha_creacion_f, label = TRUE)) %>% 
+  summarise(llamadas_por_mes = n()) 
+
+print("El día más ocupado es el marzo")
+
+#Existe una concentración o estacionalidad en la cantidad de llamadas
+
+names(llamadas_por_mes) <- c("mes", "llamadas_por_mes")
+
+
+ggplot(llamadas_por_mes, aes(x = mes, y = llamadas_por_mes)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Bar Plot", x = "mes", y = "llamadas")
+
+print("No se observa ninguna estacionalidad en cuanto al número de llamadas")
+
+#Cuántos minutos dura la llamada promedio
+
+data <- data %>% 
+  mutate(duracion_llamada = hora_final - hora_creacion)
+
+llamada_promedio <- mean(data$duracion_llamada)
+
+llamada_promedio <- llamada_promedio/60
+
+paste("la llamada promedio dura ", round(llamada_promedio, digits = 2), "minutos")
+
+#tabla de frecuencias con tiempo de llamada
+
+tiempo_de_llamada <- data %>% 
+  mutate(duracion_llamada = as.period(duracion_llamada, unit = "minutes")) %>% 
+  group_by(duracion_llamada) %>% 
+  summarise(num_llamadas = n())
+
+View(tiempo_de_llamada)
+
+#inciso 3 ---------------------------------------------------
+
+# Define the signos data frame
+signos <- data.frame(signo = c("Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"),
+                     inicio = as.Date(c("March 21", "April 20", "May 21", "June 21", "July 23", "August 23", "September 23", "October 23", "November 22", "December 22", "January 20", "February 19"), format = "%B %d"),
+                     final = as.Date(c("April 19", "May 20", "June 20", "July 22", "August 22", "September 22", "October 22", "November 21", "December 21", "January 19", "February 18", "March 20"), format = "%B %d"))
+
+# Function to get zodiac sign based on birthday (ignoring year)
+signo_zodiacal <- function(fecha) {
+  
+  fecha <- as.Date(paste("2023", format(fecha, "%m-%d"), sep = "-"))
+  
+  for (i in 1:nrow(signos)) {
+    if (fecha >= signos$inicio[i] && fecha <= signos$final[i]) {
+      return(signos$signo[i])
+    }
+  }
+}
+
+
+cumpleaños <- as.Date("08-28", format = "%m-%d")
+mi_signo <- signo_zodiacal(cumpleaños)
+paste("Tu signo zodiacal es: ",mi_signo)
+
+#inciso 4 ---------------------------------------------------
+
+#View(flights)
+
+vuelos <- flights %>% 
+  mutate(
+    departure = make_date(year,month,day),
+    sched_departure_time = make_datetime(year,month,day,hour,minute)
+  )
+
+#View(vuelos)
+
+vuelos <- vuelos %>% 
+  mutate(
+    arr_time_hora = arr_time%/%100,
+    arr_time_min = arr_time%%100,
+    dep_time_hora = dep_time%/%100,
+    dep_time_min = dep_time%%100,
+    sched_arr_time_hora = sched_arr_time%/%100,
+    sched_arr_time_min = sched_arr_time%%100,
+    sched_dep_time_hora = sched_dep_time%/%100,
+    sched_dep_time_min = sched_dep_time%%100
+  )
+
+#View(vuelos)
+
+vuelos <- vuelos %>% 
+  mutate(
+    arrival_time =make_datetime(year,month,day,arr_time_hora,arr_time_min),
+    departure_time =make_datetime(year,month,day,dep_time_hora,dep_time_min),
+    sched_arrival_time =make_datetime(year,month,day,sched_arr_time_hora,sched_arr_time_min)
+  )
+
+View(vuelos)
+
+names(vuelos)
+
+vuelos <- vuelos %>% 
+  select(-c(year, month, day, dep_time, sched_dep_time, arr_time, sched_arr_time, hour, minute, 
+            time_hour, departure, arr_time_hora, arr_time_min, dep_time_hora, dep_time_min, sched_arr_time_hora,
+            sched_arr_time_min, sched_dep_time_hora, sched_dep_time_min))
+
+vuelos <- vuelos %>% 
+  mutate(
+    delay_total = dep_delay + arr_delay
+  )
+
+View(vuelos)
+
+

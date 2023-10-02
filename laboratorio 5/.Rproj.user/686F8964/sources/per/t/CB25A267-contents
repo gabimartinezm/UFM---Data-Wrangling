@@ -1,0 +1,61 @@
+library(nycflights13)
+library(dplyr)
+library(lubridate)
+
+today()
+now()
+
+x <- "1994 October 27th"
+
+typeof(x)
+
+ymd(x)
+
+y <- "27.10.1994"
+
+dmy(y)
+
+z <- "oct. 27th 1994 14:00"
+
+mdy_hm(z)
+
+a <- 19942710
+
+ydm(a)
+
+flights
+make_date()
+
+flights %>% select(year,month,day,hour,minute) %>% head()
+
+flights_df <- flights %>% 
+  mutate(
+    departure = make_date(year,month,day),
+    departure_time = make_datetime(year,month,day,hour,minute)
+  )
+
+flights_df %>% select(year, month, day, hour, minute, departure,departure_time) %>% head()
+
+flights_df %>% head()
+
+flights_df %>% select(arr_time) %>% pull() %>% head()
+
+flights_df %>% mutate(
+  arr_time_n = arr_time%/%100,
+  arr_time_b = arr_time%%100
+) %>% select(arr_time_b) %>% pull() %>% head()
+
+
+flights_df %>% 
+  mutate(
+    dep_time = make_datetime_100(year, month, day, dep_time),
+    arr_time = make_datetime_100(year, month, day, arr_time),
+    sched_dep_time = make_datetime_100(year, month, day, sched_dep_time),
+    sched_arr_time = make_datetime_100(year, month, day, sched_arr_time)
+  )
+
+#extraer componentes de fecha 
+
+flights_dt$dep_time %>%  year() %>% is.na() %>% sum()
+
+flights_dt$dep_time %>% day() %>% unique()
