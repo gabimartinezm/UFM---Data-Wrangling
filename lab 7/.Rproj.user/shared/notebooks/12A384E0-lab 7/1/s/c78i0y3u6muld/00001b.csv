@@ -1,0 +1,8 @@
+"0",""
+"0","# moto - 73.8"
+"0",""
+"0","data %>% "
+"0","  filter(cat_tiempo == ""largo"") %>% "
+"0","  filter(origen == ""150224"" | origen == ""150277"") %>% "
+"0","  filter(vehiculo == ""moto"") %>% "
+"0","  mutate(avg_cv = mean(costo_directo))"

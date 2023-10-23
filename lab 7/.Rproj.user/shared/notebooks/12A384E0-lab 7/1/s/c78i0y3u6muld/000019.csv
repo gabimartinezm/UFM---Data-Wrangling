@@ -1,0 +1,8 @@
+"0","# si se cambia de vehiculo ----------------------"
+"0",""
+"0","# pickup - 79.1"
+"0","data %>% "
+"0","  filter(cat_tiempo == ""largo"") %>% "
+"0","  filter(origen == ""150224"" | origen == ""150277"") %>% "
+"0","  filter(vehiculo == ""pickup"") %>% "
+"0","  mutate(avg_cv = mean(costo_directo))"

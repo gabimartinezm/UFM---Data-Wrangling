@@ -1,0 +1,27 @@
+{
+    "id": "4FDEE0AC",
+    "path": "~/UFM/sexto semestre/data wrangling/lab 7/lab 7.Rmd",
+    "project_path": "lab 7.Rmd",
+    "type": "r_markdown",
+    "hash": "692559005",
+    "contents": "",
+    "dirty": false,
+    "created": 1697927677599.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "514,0",
+        "scrollLine": "509",
+        "last_setup_crc32": "cb99bc35fba9fe1c"
+    },
+    "folds": "20|21|138|0|\n",
+    "lastKnownWriteTime": 1698082393,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1698082393310,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,265 @@
+---
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+```
+
+```{r, include=FALSE}
+# cargar librerias
+library(readr)
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(lubridate)
+library(formattable)
+library(RColorBrewer)
+library(leaflet)
+```
+
+```{r, include=FALSE}
+#cargar los datos 
+data <- read_csv("c1.csv")
+
+#ver con la data que se esta trabajando
+head(data)
+str(data)
+
+#las columnas del final parecieran no tener nada por lo que se dropean
+sum(is.na(data$...23))
+sum(is.na(data$...24))
+sum(is.na(data$...25))
+sum(is.na(data$...26))
+sum(is.na(data$...27))
+sum(is.na(data$...28))
+
+data <- data %>% 
+  select(-c(...23, ...24, ...25, ...26, ...27, ...28))
+
+#pasar la fecha a formato de fecha
+data <- data %>% 
+  mutate(Fecha = dmy(Fecha))
+
+str(data)
+
+
+#pasar las columnas de costo y tipo de vehiculo a formato tidy para poder trabajar más facil con ellas
+
+camion <- data %>% 
+  filter(directoCamion_5 != "Q-") %>% 
+  mutate(vehiculo = "camion",
+         costo_total = Camion_5,
+         costo_directo = directoCamion_5,
+         costo_fijo = fijoCamion_5) %>% 
+  select(ID, factura, Fecha, vehiculo, costo_total, costo_directo, costo_fijo)
+
+pickup <- data %>% 
+  filter(directoPickup != "Q-" ) %>% 
+  mutate(vehiculo = "pickup",
+         costo_total = Pickup,
+         costo_directo = directoPickup,
+         costo_fijo = fijoPickup) %>% 
+  select(ID, factura, Fecha, vehiculo, costo_total, costo_directo, costo_fijo)
+
+moto <- data %>% 
+  filter(directoMoto != "Q-" ) %>% 
+  mutate(vehiculo = "moto",
+         costo_total = Moto,
+         costo_directo = directoMoto,
+         costo_fijo = fijoMoto) %>% 
+  select(ID, factura, Fecha, vehiculo, costo_total, costo_directo, costo_fijo)
+
+data[ , c("costo_total", "costo_directo", "costo_fijo")] <- NA
+
+#--camion--
+data <- left_join(data, camion, by = c("ID", "factura", "Fecha"))
+
+data <- data %>% 
+  mutate(
+    costo_total = coalesce(costo_total.x, costo_total.y),
+    costo_directo = coalesce(costo_directo.x, costo_directo.y),
+    costo_fijo = coalesce(costo_fijo.x, costo_fijo.y)
+  ) %>% 
+  select(-c(costo_total.x, costo_total.y, costo_directo.x, 
+            costo_directo.y, costo_fijo.x,costo_fijo.y)) 
+
+#--pickup--
+data <- left_join(data, pickup, by = c("ID", "factura", "Fecha"))
+
+data <- data %>% 
+  mutate(
+    costo_total = coalesce(costo_total.x, costo_total.y),
+    costo_directo = coalesce(costo_directo.x, costo_directo.y),
+    costo_fijo = coalesce(costo_fijo.x, costo_fijo.y),
+    vehiculo = coalesce(vehiculo.x, vehiculo.y)
+  ) %>% 
+  select(-c(costo_total.x, costo_total.y, costo_directo.x, 
+            costo_directo.y, costo_fijo.x,costo_fijo.y, vehiculo.x, vehiculo.y))
+
+#--moto--
+data <- left_join(data, moto, by = c("ID", "factura", "Fecha"))
+
+data <- data %>% 
+  mutate(
+    costo_total = coalesce(costo_total.x, costo_total.y),
+    costo_directo = coalesce(costo_directo.x, costo_directo.y),
+    costo_fijo = coalesce(costo_fijo.x, costo_fijo.y),
+    vehiculo = coalesce(vehiculo.x, vehiculo.y)
+  ) %>% 
+  select(-c(costo_total.x, costo_total.y, costo_directo.x, 
+            costo_directo.y, costo_fijo.x,costo_fijo.y, vehiculo.x, vehiculo.y))
+
+#--drop las que ya no necesito
+data <- data %>% 
+  select(-c(Camion_5, Pickup, Moto, directoCamion_5, directoPickup, directoMoto,
+            fijoCamion_5, fijoPickup, fijoMoto))
+
+# agregar las categorias de tiempo 
+data[ , "cat_tiempo"] <- NA
+
+data <- data %>% 
+  mutate(cat_tiempo = ifelse(!is.na(`5-30`), "inmediato",
+                     ifelse(!is.na(`30-45`), "breve",
+                        ifelse(!is.na(`45-75`), "corto",
+                           ifelse(!is.na(`75-120`), "moderado",
+                              ifelse(!is.na(`120+`), "extendido", NA))))))
+
+data <- data %>% 
+  select(-c(`5-30`, `30-45`, `45-75`, `75-120`, `120+`))
+
+# pasar los numeros conn Q a algo que no sea character y el origen para que si sea character
+data <- data %>% 
+  mutate(factura = currency(factura, "Q"),
+         costo_total = currency(costo_total, "Q"),
+         costo_directo = currency(costo_directo, "Q"),
+         costo_fijo = currency(costo_fijo, "Q"),
+         origen = as.character(origen))
+  
+```
+
+# Inversiones en Energía, S.A. de C.V. - Informe de Operaciones 2017
+
+### Resumen 
+
+### Supuestos
+
+Se asumio que las columnas que indicaban cuanto se tardaban en llegar hablaban en términos de minutos y se generó categorías para poder hacer referencia a estos de manera más fácil. Las categorías serán de la siguiente manera: 
+
+minutos | categoría
+------- | ---------
+5-30    | inmediato
+30-45   | breve
+45-75   | corto
+75-120  | moderado
+120+    | extendido
+
+### Resultados 
+
+##### Estrategias a seguir para llegar a niveles de 2017 en 2019
+
+Primero, se necesita saber con cuánto se trabajo en 2017 y 2018: 
+```{r, include=FALSE}
+
+utilidades <- data %>% 
+  summarise(ventas_totales = sum(factura),
+            costos_totales = sum(costo_total)) %>% 
+  mutate(utilidades_totales = ventas_totales - costos_totales,
+         utilidades_2018 = utilidades_totales * 0.75)
+
+utilidades_year <- data.frame(year = c("2017", "2018"),
+                             utilidades = c(utilidades$utilidades_totales, utilidades$utilidades_2018))
+```
+
+```{r}
+#grafica
+ggplot(utilidades_year, aes(x = year, y = utilidades, fill = year)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = brewer.pal(n = 2, name = "YlGnBu")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(fill = "Year", 
+       title = "Utilidades para 2017 y 2018",
+       x = "Year",
+       y = "Utilidades") +
+  geom_text(
+    label=utilidades_year$utilidades, 
+    nudge_x = 0.25, nudge_y = 0.25,
+    label.padding = unit(0.55, "lines"),
+    check_overlap = T
+  )
+```
+
+
+Como ya se sabía, en 2018 se vió una baja del 25% en las utilidades
+
+##### Centros de distribucion ¿too many or too little?
+```{r}
+#cuantos centros de distribucion tengo 
+centros_distribucion <- data %>% 
+  group_by(origen) %>% 
+  summarise(n = n()) %>% 
+  mutate(propocion_viajes = round(n/263725, 3))
+
+#grafica
+ggplot(centros_distribucion, aes(x = origen, y = n, fill = origen)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = brewer.pal(n = 4, name = "YlGnBu")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(fill = "Punto de Origen", 
+       title = "Viajes segun cada punto de origen",
+       x = "Punto de origen",
+       y = "# de viajes")
+
+
+#distancia de tiempo entre cada estacion
+distancia_origen <- data %>%
+  group_by(origen, cat_tiempo) %>% 
+  summarise(count = n()) 
+
+#%>% pivot_wider(names_from = origen, values_from = n)
+
+# grafica
+ggplot(distancia_origen, aes(x = origen, y = count, fill = cat_tiempo)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  scale_fill_manual(values = brewer.pal(n = 5, name = "YlGnBu")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(fill = "Categoria de tiempo", 
+       title = "Viajes según categoria de tiempo dependiendo del punto de origen",
+       x = "Categoria de tiempo",
+       y = "# de viajes")
+
+num_clientes <- data %>% 
+  group_by(ID, Lat, Long) %>% 
+  summarise(n = n())
+
+mapa <- leaflet() %>%
+  addTiles() %>%
+  addMarkers(data = num_clientes, lat = ~Lat, lng = ~Long, label = ~n)
+
+mapa
+
+```
+
+
+
+```{r}
+data %>% 
+    group_by(month = lubridate::floor_date(Fecha, 'month')) %>%
+    summarize(n = n())
+```
+
+
+##### Margen de mantenimiento y reparación
+```{r, include=FALSE}
+```
+
+
+##### 80-20 de factura y postes que necesitan mas mantenimiento
+
+##### Recorridos más efectivos
+
+### Conclusiones y recomendaciones 
