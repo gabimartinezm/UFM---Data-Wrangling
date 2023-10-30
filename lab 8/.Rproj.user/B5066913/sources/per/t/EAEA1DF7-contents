@@ -1,0 +1,77 @@
+library(tidyverse)
+library(highcharter)
+library(readr)
+
+df <- read_delim("2010-2019-top.csv", ";", escape_double = FALSE, trim_ws = TRUE)
+
+view(df)
+str(df)
+glimpse(df)
+
+names(df)[4] <- "top_genre"
+names(df)
+
+#rename(df, top_genre = 'top genre')
+
+#filtro de los primeros 5 resultados artista y año
+
+head(select(df, artist, year), 5)
+
+df %>% 
+  select(artist, year) %>% 
+  head()
+
+#quiero todas las columnas menos 1 
+df %>% 
+  select(-X1)
+
+
+#texto a factores 
+df <- mutate_if(df, is.character, as.factor)
+glimpse(df)
+
+
+# seleccionar el artista, tiutlo, del año 2010
+
+df %>% 
+  select(artist, title, year) %>% 
+  filter(year == 2010)
+
+
+# cuantos artistas hay 
+df %>% 
+  summarise(n = n_distinct(artist))
+
+#cuantos artistas hay por año 
+
+aristas_año <- df %>% 
+  select(year, artist) %>% 
+  group_by(year) %>% 
+  summarise(total = n_distinct(artist))
+
+aristas_año
+
+
+# cuantos canciones distintas tenemos 
+df %>% 
+  summarise(n = n_distinct(title))
+
+
+### canciones que se repiten por año 
+
+df %>% 
+  select(title) %>% 
+  group_by(title) %>% 
+  summarise(n = n()) %>%
+  filter(n>1)
+  
+
+### que artistas han tenido más de una canción que fue popular en más de un año
+
+df %>% 
+  group_by(artist, title) %>% 
+  count() %>% 
+  filter(n>1) %>% 
+  group_by(artist) %>% 
+  summarise(artistas = n()) %>% 
+  filter(artistas > 1)
